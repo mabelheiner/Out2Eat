@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, Button, FlatList, StyleSheet, Linking, Image, Platform } from "react-native";
+import { View, Text, Button, FlatList, StyleSheet, Linking, Image, Platform, Pressable, TextInput } from "react-native";
 import axios from "axios";
 import Place from "./components/Place";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 //const logoPlaceholder = require('../assets/images/logoPlaceholder.jpg')
 
@@ -12,12 +14,15 @@ interface Restaurant {
   lat: number;
   lon: number;
   googleMapsLink: string;
-  logoUrl?: string; // Logo URL is optional
+  logoUrl: string; 
 }
 
 export default function Index() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(false);
+  const [restaurantIndex, setRestaurantIndex] = useState(0);
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
 
   const generateGoogleMapsLink = (name: string, lat: number, lon: number) => {
     const formattedName = encodeURIComponent(name);
@@ -63,8 +68,9 @@ export default function Index() {
 
     const query = `
       [out:json];
-      area["name"="Rexburg"]->.searchArea;
-      nwr["amenity"="fast_food"](area.searchArea);
+      area[name="${state}"][admin_level=4]->.stateArea;
+      area[name="${city}"][admin_level=8]->.cityArea;
+      nwr["amenity"="fast_food"](area.cityArea)(area.stateArea);
       out geom;
     `;
     const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
@@ -100,7 +106,7 @@ export default function Index() {
             .replace(/\s+/g, "") // Remove spaces
             .replace(/'/g, ""); // Remove apostrophes
           const logoUrl = await fetchLogos(item.tags?.["brand:wikidata"], formattedName);
-          console.log(`logo url for ${formattedName} is ${logoUrl}`)
+          //console.log(`logo url for ${formattedName} is ${logoUrl}`)
 
           return {
             id: item.id,
@@ -122,23 +128,54 @@ export default function Index() {
     }
   };
 
+/*   const swipeGesture = Gesture.Pan()
+    .onEnd((event) => {
+      console.log('Swiped')
+      const { translationX } = event;
+
+      if (translationX < -50 && restaurantIndex < restaurants.length - 1) {
+        //swipe left
+        console.log('Swiped left')
+        setRestaurantIndex((prevIndex) => prevIndex + 1);
+      } else if (translationX > 50 && restaurantIndex > 0) {
+        //swipe right
+        console.log('Swiped Right')
+        setRestaurantIndex((prevIndex) => prevIndex - 1);
+      }
+    }) */
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <TextInput 
+        style={styles.textInput}
+        placeholder="City to Search"
+        value={city}
+        onChangeText={setCity}
+      ></TextInput>
+      <TextInput
+        style={styles.textInput}
+        placeholder="State to Search"
+        value={state}
+        onChangeText={setState}
+      ></TextInput>
       <Button title="Fetch Restaurants" onPress={fetchRestaurants} />
-      {loading ? (
-        <Text>Loading...</Text>
-      ) : restaurants.length === 0 ? (
-        <Text>No restaurants found.</Text>
-      ) : (
-        <View>
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : restaurants.length === 0 ? (
+          <Text>No restaurants found.</Text>
+        ) : (
+            <View style={styles.restaurantView}>
+              <Pressable style={styles.restaurantButtons} onPress={() => {if (restaurantIndex > 0) setRestaurantIndex(restaurantIndex - 1)}}><Text>-</Text></Pressable>
+              <Place restaurant={restaurants[restaurantIndex]} />
+              <Pressable style={styles.restaurantButtons} onPress={() => {if (restaurantIndex < restaurants.length - 1) setRestaurantIndex(restaurantIndex + 1)}}><Text>+</Text></Pressable>
+            </View>
+        )}  
+      </SafeAreaView>)}
+    {/* <View>
           {restaurants.map((restaurant, index) => (
             <Place key={index} restaurant={restaurant} />
           ))}          
-        </View> 
-        )}
-        </View>
-      );
-    }
+        </View>  */}
         {/* <FlatList
           data={restaurants}
           keyExtractor={(item, index) => (item?.id ? item.id.toString() : index.toString())}
@@ -168,10 +205,13 @@ export default function Index() {
     </View> */}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, marginTop: 50 },
+  container: { flex: 1, padding: 20, marginTop: 50},
   item: { marginBottom: 20, borderBottomWidth: 1, borderBottomColor: "#ccc", paddingBottom: 10 },
   name: { fontSize: 18, fontWeight: "bold" },
   address: { fontSize: 14, color: "#666" },
   link: { fontSize: 12, color: "blue" },
   logo: { height: 150, width: 150, marginBottom: 10, resizeMode: 'contain' },
+  textInput: {fontSize: 14, borderColor: 'gray'},
+  restaurantView: {flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center'},
+  restaurantButtons: { padding: 10, margin: 10 }
 });

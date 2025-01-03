@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View, Image, ScrollView } from 'react-native'
-import React, { useState } from 'react'
+import { StyleSheet, Text, View, Image, Linking } from 'react-native'
+import React, { useEffect, useState } from 'react'
 
 const logoPlaceholder = require("../assets/images/logoPlaceholder.jpg")
 
@@ -10,32 +10,58 @@ interface Restaurant {
     lat: number;
     lon: number;
     googleMapsLink: string;
-    logoUrl?: string; // Logo URL is optional
+    logoUrl: string; // Logo URL is required
 }
 
 interface PlaceProps {
     restaurant: Restaurant
 }
 
-const Place: React.FC<PlaceProps> = ({restaurant}) => {
+const Place: React.FC<PlaceProps> = ({ restaurant }) => {
+  const [imageSource, setImageSource] = useState<{ uri: string }>({ uri: restaurant.logoUrl }) || logoPlaceholder;
+
+  useEffect(() => {
+    setImageSource({uri: restaurant.logoUrl})
+  }, [restaurant])
+  const handleImageError = () => {
+    console.log(`Failed to load image: ${restaurant.logoUrl}, falling back to placeholder`);
+    setImageSource(logoPlaceholder);
+  };
+
   return (
-    <ScrollView>
-      <Text>
+    <View>
+      <Text style={styles.restaurantName}>
         {restaurant.name}
       </Text>
-        {restaurant.logoUrl ? (
-          <>
-          <Image source={{ uri: restaurant.logoUrl }} alt={restaurant.logoUrl} onError={(error) => console.log('Error', error)} />
-          <Text>{restaurant.logoUrl}</Text>
-          </>
-          ) : (
-          <Image source={logoPlaceholder} alt={"no logo found"} />
-        )}
-        
-    </ScrollView>
-  )
-}
+      <Image
+        source={imageSource}
+        style={styles.image}
+        onError={(handleImageError)}
+      />
+      {/* {restaurant.address != "No street address available" ? (
+        <Text
+        style={{ color: "blue" }}
+        onPress={() => Linking.openURL(restaurant.googleMapsLink)}
+      >
+        View on Google Maps
+      </Text>
+      ): (<Text>No street address available</Text>)} */}
+    </View>
+  );
+};
 
-export default Place
+const styles = StyleSheet.create({
+  restaurantName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  image: {
+    width: 200,
+    height: 200,
+    marginVertical: 16,
+    borderRadius: 8,
+  },
+});
 
-const styles = StyleSheet.create({})
+export default Place;
